@@ -1,1 +1,19 @@
-.idea
+# Build directories
+build/
+cmake-build-*/
+
+# IDEs
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Local experiment output
+results/local/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
