@@ -23,8 +23,8 @@ def read_samples(path):
             t_end = float(r["t_rel_s"])
             lat = float(r["lat_ms"])
             rows.append({
-                # The professor's skeleton stores the completion timestamp.
-                # Keep it as the timeline timestamp so old measurements remain usable.
+                # The load generator records the request completion timestamp.
+                # Keep it as the timeline timestamp so existing measurements remain usable.
                 "t": t_end,
                 "t_start": t_end - lat / 1000.0,
                 "lat": lat,

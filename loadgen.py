@@ -204,7 +204,7 @@ def one_request(host, port, timeout, rid, op, key, value=None):
 
 def verify_reserved_key(args, phase):
     key = "verify-key-00000001"
-    value = "known-value-aufgabe3"
+    value = "known-value-shardkv"
     if phase == "before":
         rid, st, _ = one_request(args.host, args.port, args.timeout, 9_000_001, "PUT", key, value)
         if st != "OK":
@@ -232,7 +232,7 @@ def main():
     args = ap.parse_args()
 
     if args.clients < 1:
-        ap.error("--clients must be >= 1; Aufgabe 3 requires at least 64")
+        ap.error("--clients must be >= 1")
     if not (0 <= args.warmup < args.duration):
         ap.error("required: 0 <= warmup < duration")
     if args.timeout <= 0:
