@@ -222,7 +222,6 @@ def main():
                                  args.brownout_start, args.brownout_end, args.bin)
         phase_ratio = brown["p99_ms"] / normal["p99_ms"] if normal["p99_ms"] > 0 else float("nan")
         peak_ratio = peak / normal["p99_ms"] if normal["p99_ms"] > 0 else float("nan")
-п
         print(f"\n{variant} (normal reference: {normal_source})")
         print(f"  normal healthy p99:           {normal['p99_ms']:.2f} ms")
         print(f"  brownout healthy phase p99:   {brown['p99_ms']:.2f} ms ({phase_ratio:.2f}x)")
