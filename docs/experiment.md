@@ -1,6 +1,7 @@
 # Multi-Host Experiment Guide
 
-This document describes how to reproduce the original ShardKV experiment on multiple Linux machines.
+This document reconstructs the multi-host experiment used to produce the measurements published.
+The steps follow the original procedure.
 
 > [!NOTE]
 > All IP addresses below are documentation-only examples from the `192.0.2.0/24` range.
@@ -37,7 +38,7 @@ The machines should be connected through the same local network.
 
 ## Reference hardware and software
 
-The measurements published were collected on the following platform.
+The published measurements were collected on the following platform.
 
 ### Hardware
 
@@ -47,8 +48,8 @@ The measurements published were collected on the following platform.
 - AArch64 / 64-bit architecture
 - 8 GB RAM
 - L1 cache per core:
-    - 32 KiB data cache
-    - 48 KiB instruction cache
+  - 32 KiB data cache
+  - 48 KiB instruction cache
 - 1 MiB shared L2 cache
 - 64-byte cache line
 
@@ -60,18 +61,18 @@ The measurements published were collected on the following platform.
 - experiment files stored on a RAM-backed / `tmpfs` filesystem
 - no persistent local storage was used for the measurements
 
-# Experimental procedure
+## Experimental procedure
 
-## 1. Build executable
+### 1. Prepare and build
 
-Clone the same repository on the gateway and backend machines:
+Clone the repository on the client, gateway, and backend machines:
 
 ```bash
 git clone https://github.com/makksmrk/shardkv-fault-isolation.git
 cd shardkv-fault-isolation
 ```
 
-Build the C++ programs:
+Build the C++ programs on the gateway and backend machines:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -86,23 +87,23 @@ build/shardkv_gateway_baseline
 build/shardkv_gateway_isolated
 ```
 
-## 2. Start the backend shards
+### 2. Start the backend shards
 
 Run one backend process on each backend machine.
 
-### Backend 0 — `192.0.2.13`
+#### Backend 0 — `192.0.2.13`
 
 ```bash
 ./build/shardkv_backend 9100 backend0_metrics.csv
 ```
 
-### Backend 1 — `192.0.2.14`
+#### Backend 1 — `192.0.2.14`
 
 ```bash
 ./build/shardkv_backend 9100 backend1_metrics.csv
 ```
 
-### Backend 2 — `192.0.2.15`
+#### Backend 2 — `192.0.2.15`
 
 ```bash
 ./build/shardkv_backend 9100 backend2_metrics.csv
@@ -110,11 +111,11 @@ Run one backend process on each backend machine.
 
 All three backends use port `9100` because they run on separate machines.
 
-## 3. Start the gateway
+### 3. Start the gateway
 
 Run the gateway on the gateway machine (`192.0.2.12`).
 
-### Baseline gateway
+#### Baseline gateway
 
 ```bash
 ./build/shardkv_gateway_baseline \
@@ -125,7 +126,7 @@ Run the gateway on the gateway machine (`192.0.2.12`).
   gateway_baseline_metrics.csv
 ```
 
-### Isolated gateway
+#### Isolated gateway
 
 For the isolated experiment, stop the baseline gateway and start:
 
@@ -140,7 +141,7 @@ For the isolated experiment, stop the baseline gateway and start:
 
 Only one gateway variant should listen on port `9000` at a time.
 
-## 4. Seed the key space
+### 4. Seed the key space
 
 Before the measured run, populate the key space through the gateway from the client machine:
 
@@ -152,9 +153,7 @@ python3 tools/seed_data.py \
   --timeout 5
 ```
 
-This gives the load generator a deterministic set of keys for subsequent operations.
-
-## 5. Run the normal workload
+### 5. Run the normal workload
 
 The reference workload uses:
 
@@ -168,6 +167,8 @@ The reference workload uses:
 - 70 s measured workload
 - client timeout of 5 s
 
+Run from the client machine:
+
 ```bash
 python3 tools/loadgen.py \
   --host 192.0.2.12 \
@@ -180,15 +181,13 @@ python3 tools/loadgen.py \
   --csv baseline_normal_1.csv
 ```
 
-Or use script:
+The same workload can also be started through the multi-host helper:
 
 ```bash
-./scripts/run_normal.sh \
-  192.0.2.12 \
-  baseline_normal_1.csv
+./scripts/run_normal.sh 192.0.2.12 baseline_normal_1.csv
 ```
 
-For the published comparison, the workload was repeated three times for each configuration:
+For the published comparison, each configuration was measured three times:
 
 ```text
 baseline normal
@@ -199,15 +198,13 @@ isolated brownout
 
 This results in 12 measured workload runs in total.
 
-## 6. Inject a brownout
+### 6. Inject a brownout
 
 The brownout simulates a backend that stops making progress without crashing.
 
-In the reference experiment, backend shard 2 was paused with `SIGSTOP` at `t=30 s` and resumed with `SIGCONT` at `t=45 s`.
+In the reference experiment, backend shard 2 was paused with `SIGSTOP` at `t=30 s` and resumed with `SIGCONT` at `t=45 s`. The client continued sending traffic during the entire 15-second brownout.
 
-The client keeps sending traffic during the entire 15-second brownout.
-
-### 6.1 Find the backend PID
+#### 6.1 Find the backend PID
 
 On Backend 2:
 
@@ -215,13 +212,9 @@ On Backend 2:
 pgrep shardkv_backend
 ```
 
-Assume the returned PID is:
+Assume the returned PID is `12345`.
 
-```text
-12345
-```
-
-### 6.2 Verify SSH access
+#### 6.2 Verify SSH access
 
 The client machine must be able to reach Backend 2 over SSH:
 
@@ -229,7 +222,7 @@ The client machine must be able to reach Backend 2 over SSH:
 ssh user@192.0.2.15
 ```
 
-### 6.3 Run the brownout workload
+#### 6.3 Run the brownout workload
 
 From the client machine:
 
@@ -241,7 +234,7 @@ From the client machine:
   baseline_brownout_1.csv
 ```
 
-With an explicit SSH key:
+If a dedicated SSH key is required, pass it as the final argument:
 
 ```bash
 ./scripts/run_brownout.sh \
@@ -252,7 +245,7 @@ With an explicit SSH key:
   ~/.ssh/experiment_key
 ```
 
-The helper performs the following sequence automatically:
+The helper performs the following sequence:
 
 ```text
 t = 0 s     start workload
@@ -263,10 +256,9 @@ t = 70 s    workload ends
 
 The script also attempts to resume the backend during cleanup if the run is interrupted.
 
+### 7. Analyze the workload traces
 
-## 7. Analyze the workload traces
-
-After copying the CSV files to one machine, run:
+After copying the CSV files to one machine:
 
 ```bash
 python3 tools/analyze.py \
@@ -291,44 +283,35 @@ python3 tools/analyze.py \
   --summary summary.csv
 ```
 
-The analysis produces:
+The analysis produces an aggregated summary CSV and the healthy-shard p99 latency timeline.
+Interpretation of the published measurements and additional plots are available in [results.md](results.md).
 
-- an aggregated summary CSV;
-- a healthy-shard p99 latency timeline;
-- normal-vs-brownout comparisons for both gateway variants.
-
-
-- in the **baseline**, the stalled shard consumes shared workers and degrades otherwise healthy shards;
-- in the **isolated** gateway, the impact should remain mostly limited to the affected shard.
-
-## 8. Optional system-level measurements
+### 8. Optional system-level measurements
 
 During the original investigation, additional Linux metrics were used to understand why the baseline slowed down.
 
-Examples:
-
-### Process CPU and scheduler activity
+#### Process CPU and scheduler activity
 
 ```bash
 pidstat -p <GATEWAY_PID> 1
 ```
 
-### Run queue and context switches
+#### Run queue and context switches
 
 ```bash
 vmstat 1
 ```
 
-### TCP socket state
+#### TCP socket state
 
 ```bash
 ss -tinp
 ```
 
-### CPU profiling
+#### CPU profiling
 
 ```bash
 perf record -F 99 -g -p <GATEWAY_PID>
 ```
 
-These measurements are mainly useful for understanding of the mechanism behind the observed queueing and worker blocking.
+These measurements are mainly useful for understanding the mechanism behind the observed queueing and worker blocking.

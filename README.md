@@ -58,15 +58,16 @@ flowchart LR
     W2 --> S2[Shard 2]
 ```
 
-Each shard gets its own bounded queue and worker pool. Backend calls have a 250 ms timeout; after a failure, the corresponding circuit breaker opens for 1 second and requests to that shard fail fast until a probe succeeds.
+Each shard gets its own bounded queue and worker pool. Backend calls have a 250 ms timeout; after a failure,
+the corresponding circuit breaker opens for 1 second and requests to that shard fail fast until a probe succeeds.
 
 For a more detailed walkthrough, see [docs/architecture.md](docs/architecture.md).
 
 ## How it works
 
-ShardKV consists of three in-memory backend processes and one gateway. Keys are assigned to shards using deterministic FNV-1a hashing, so the C++ gateway and Python load generator agree on the shard for every key.
+ShardKV consists of three in-memory backend processes and one gateway.
 
-The protocol is deliberately small and text based:
+The protocol example:
 
 ```text
 42 PUT user-123 hello
@@ -103,7 +104,7 @@ python3 -m pip install -r requirements.txt
 
 ## Local demo
 
-The original measurements were collected on multiple Raspberry Pi nodes, but the whole system can also be run locally on one Linux machine.
+The whole system can be run locally on one Linux machine.
 
 Run either gateway version:
 
@@ -114,15 +115,15 @@ Run either gateway version:
 
 The script starts three backend processes on localhost, starts the selected gateway, seeds the key space, runs a short workload, and stores generated files under `results/local/`.
 
-The demo is intentionally shorter than the original experiment. Environment variables can be used to change the workload, for example:
+Environment variables can be used to change the workload, for example:
 
 ```bash
-DURATION=30 CLIENTS=64 KEYS=100000 ./run_local_demo.sh isolated
+DURATION=30 CLIENTS=64 KEYS=100000 ./scripts/run_local_demo.sh isolated
 ```
 
 ## Reproduce a local brownout
 
-A local failure can be injected local:
+A local brownout can be injected with:
 
 ```bash
 ./scripts/run_local_brownout.sh baseline
@@ -131,7 +132,7 @@ A local failure can be injected local:
 
 The script pauses backend 2 with `SIGSTOP`, keeps the workload running, and resumes it with `SIGCONT` after the configured brownout window.
 
-Default local settings. They can be changed through environment variables:
+The defaults can be changed through environment variables:
 
 ```bash
 DURATION=70 \
@@ -140,25 +141,14 @@ CLIENTS=64 \
 BROWNOUT_AT=30 \
 BROWNOUT_SECONDS=15 \
 KEYS=100000 \
-./run_local_brownout.sh isolated
+./scripts/run_local_brownout.sh isolated
 ```
 
-`run_normal.sh` and `run_brownout.sh` are for experiments where the gateway/backends run on separate machines.
+## Original multi-host experiment
 
-## Original experiment
+The published measurements were collected on five Raspberry Pi 4 nodes: one load generator, one gateway, and three backend nodes.
 
-The results include:
-
-- 64 concurrent clients;
-- 100,000 keys;
-- 90% `GET`, 8% `PUT`, 2% `DELETE`;
-- deterministic seed `42`;
-- 10 s warm-up;
-- 70 s load run;
-- shard 2 paused from `t=30 s` to `t=45 s`;
-- three runs per architecture/configuration.
-
-The measurements were collected on five Raspberry Pi nodes provided by the university: one load generator, one gateway, and three backend nodes.
+A complete reconstruction of the experiment — including the reference hardware and software, network topology, workload parameters, startup commands, brownout injection, and analysis steps — is available in [docs/experiment.md](docs/experiment.md).
 
 Detailed interpretation and additional plots are in [docs/results.md](docs/results.md). The compact aggregated data is available in [`measurements/summary.csv`](measurements/summary.csv).
 
@@ -170,62 +160,18 @@ Detailed interpretation and additional plots are in [docs/results.md](docs/resul
 ├── tools/          # workload generation and analysis utilities
 ├── scripts/        # local and multi-host experiment runners
 ├── measurements/   # selected experimental results
-├── docs/           # architecture and result documentation
+├── docs/           # architecture, experiment guide, and results
 └── CMakeLists.txt
 ```
 
-## Analysis scripts
+## Analysis utilities
 
-`analyze.py` accepts raw load-generator CSV files and produces an aggregated summary plus the healthy-shard p99 timeline.
+`tools/analyze.py` aggregates raw load-generator traces and produces the healthy-shard p99 timeline and summary CSV.
 
-Example usage:
+`tools/queue_plots.py` regenerates the queue-behavior plots from the gateway metric samples retained in `measurements/`:
+
 ```bash
-python3 analyze.py \
-    --baseline-normal \
-        baseline_normal_1.csv \
-        baseline_normal_2.csv \
-        baseline_normal_3.csv \
-    --baseline-brownout \
-        baseline_brownout_1.csv \
-        baseline_brownout_2.csv \
-        baseline_brownout_3.csv \
-    --isolated-brownout \
-        isolated_brownout_1.csv \
-        isolated_brownout_2.csv \
-        isolated_brownout_3.csv \
-    --isolated-normal \
-    	isolated_normal_1.csv \
-    	isolated_normal_2.csv \
-    	isolated_normal_3.csv \
-    --unhealthy-shard 2 \
-    --out p99_healthy_timeline.png \
-    --summary summary.csv
-```
-
-Example output:
-```bash
-wrote p99_healthy_timeline.png
-wrote summary.csv
-
-baseline (normal reference: separate normal runs)
-  normal healthy p99:           27.18 ms
-  brownout healthy phase p99:   32.45 ms (1.19x)
-  brownout peak 1s p99:      5023.35 ms (184.79x)
-  healthy throughput ratio:     14.5%
-
-isolated (normal reference: separate normal runs)
-  normal healthy p99:           27.34 ms
-  brownout healthy phase p99:   27.07 ms (0.99x)
-  brownout peak 1s p99:      47.29 ms (1.73x)
-  healthy throughput ratio:     99.7%
-
-```
-
-`queue_plots.py` works with the small gateway metric samples retained in `measurements/` and can regenerate the queue-behavior plots:
-
-Example usage:
-```bash
-python3 queue_plots.py
+python3 tools/queue_plots.py
 ```
 
 ## Limitations
