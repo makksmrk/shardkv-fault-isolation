@@ -1,18 +1,17 @@
-# Build directories
-build/
-cmake-build-*/
-
-# IDEs
-.idea/
-.vscode/
+# Local experiment output
+results/local/
+*.log
 
 # Python
 __pycache__/
 *.py[cod]
+.venv/
+venv/
 
-# Local experiment output
-results/local/
-*.log
+# IDEs/editors
+.idea/
+.vscode/
+*.swp
 
 # OS files
 .DS_Store
