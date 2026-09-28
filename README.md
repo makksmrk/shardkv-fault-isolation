@@ -178,7 +178,7 @@ Detailed interpretation and additional plots are in [docs/results.md](docs/resul
 ├── run_local_brownout.sh       # local brownout reproduction
 ├── run_normal.sh               # multi-host normal-run helper
 ├── run_brownout.sh             # multi-host SSH brownout helper
-├── measurements/               # compact portfolio results, not full raw traces
+├── measurements/               # compact results and key measurements
 └── docs/
     ├── architecture.md
     └── results.md
