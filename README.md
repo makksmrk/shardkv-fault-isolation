@@ -108,8 +108,8 @@ The original measurements were collected on multiple Raspberry Pi nodes, but the
 Run either gateway version:
 
 ```bash
-./run_local_demo.sh baseline
-./run_local_demo.sh isolated
+./scripts/run_local_demo.sh baseline
+./scripts/run_local_demo.sh isolated
 ```
 
 The script starts three backend processes on localhost, starts the selected gateway, seeds the key space, runs a short workload, and stores generated files under `results/local/`.
@@ -125,8 +125,8 @@ DURATION=30 CLIENTS=64 KEYS=100000 ./run_local_demo.sh isolated
 A local failure can be injected without SSH or university infrastructure:
 
 ```bash
-./run_local_brownout.sh baseline
-./run_local_brownout.sh isolated
+./scripts/run_local_brownout.sh baseline
+./scripts/run_local_brownout.sh isolated
 ```
 
 The script pauses backend 2 with `SIGSTOP`, keeps the workload running, and resumes it with `SIGCONT` after the configured brownout window.
@@ -166,22 +166,12 @@ Detailed interpretation and additional plots are in [docs/results.md](docs/resul
 
 ```text
 .
-├── backend.cpp                 # in-memory key-value backend
-├── common.hpp                  # protocol, hashing, networking helpers
-├── gateway_baseline.cpp        # shared queue / shared worker pool
-├── gateway_isolated.cpp        # per-shard isolation + timeout + circuit breaker
-├── loadgen.py                  # concurrent workload generator
-├── seed_data.py                # initial key seeding
-├── analyze.py                  # latency/throughput analysis for raw load traces
-├── queue_plots.py              # plots from gateway metrics
-├── run_local_demo.sh           # local functional demo
-├── run_local_brownout.sh       # local brownout reproduction
-├── run_normal.sh               # multi-host normal-run helper
-├── run_brownout.sh             # multi-host SSH brownout helper
-├── measurements/               # compact results and key measurements
-└── docs/
-    ├── architecture.md
-    └── results.md
+├── src/            # C++ backend and gateway implementations
+├── tools/          # workload generation and analysis utilities
+├── scripts/        # local and multi-host experiment runners
+├── measurements/   # selected experimental results
+├── docs/           # architecture and result documentation
+└── CMakeLists.txt
 ```
 
 ## Analysis scripts
@@ -191,7 +181,7 @@ Detailed interpretation and additional plots are in [docs/results.md](docs/resul
 `queue_plots.py` works with the small gateway metric samples retained in `measurements/` and can regenerate the queue-behavior plots:
 
 ```bash
-python3 queue_plots.py
+python3 tools/queue_plots.py
 ```
 
 ## Limitations

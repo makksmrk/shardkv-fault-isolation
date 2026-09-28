@@ -7,9 +7,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-O2 -Wall -Wextra -Wpedantic)
 
-add_executable(shardkv_backend backend.cpp)
-add_executable(shardkv_gateway_baseline gateway_baseline.cpp)
-add_executable(shardkv_gateway_isolated gateway_isolated.cpp)
+add_executable(
+        shardkv_backend
+        src/backend.cpp
+)
+
+add_executable(
+        shardkv_gateway_baseline
+        src/gateway_baseline.cpp
+)
+
+add_executable(
+        shardkv_gateway_isolated
+        src/gateway_isolated.cpp
+)
 
 target_link_libraries(shardkv_backend PRIVATE pthread)
 target_link_libraries(shardkv_gateway_baseline PRIVATE pthread)

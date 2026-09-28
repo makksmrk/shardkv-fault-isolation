@@ -21,10 +21,10 @@ jobs:
       - name: Check Python syntax
         run: |
           python3 -m py_compile \
-            loadgen.py \
-            seed_data.py \
-            analyze.py \
-            queue_plots.py
+            tools/loadgen.py \
+            tools/seed_data.py \
+            tools/analyze.py \
+            tools/queue_plots.py
 
       - name: Check shell syntax
-        run: bash -n run_normal.sh run_brownout.sh run_local_demo.sh run_local_brownout.sh
+        run: bash -n scripts/run_normal.sh scripts/run_brownout.sh scripts/run_local_demo.sh scripts/run_local_brownout.sh
