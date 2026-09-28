@@ -1,3 +1,7 @@
+# Build output
+build/
+cmake-build-*/
+
 # Local experiment output
 results/local/
 *.log

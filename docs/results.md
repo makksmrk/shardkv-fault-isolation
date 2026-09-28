@@ -3,7 +3,7 @@
 ## Test setup
 
 The original experiment used five Raspberry Pi nodes:
-one load generator, one gateway, and three backends. (see [docs/experiment.md](docs/experiment.md))
+one load generator, one gateway, and three backends. (see [experiment.md](experiment.md))
 
 Workload configuration:
 

@@ -41,9 +41,8 @@ def read_samples(path):
 def p99_series(rows, unhealthy_shard, start, end, bin_s=1.0):
     bins = defaultdict(list)
     for r in rows:
-        # Timeline is based on completion time, exactly as t_rel_s in the
-        # provided load-generator skeleton. During a complete stall there can
-        # be empty bins; timeout/recovery samples can therefore be isolated.
+        # Timeline is based on request completion time. During a complete stall,
+        # some bins may be empty and timeout/recovery samples can appear separately.
         t = r["t"]
         if r["shard"] == unhealthy_shard or not (start <= t < end):
             continue
