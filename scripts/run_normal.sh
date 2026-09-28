@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# Run a normal-load test against a remote ShardKV gateway.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,6 +14,7 @@ fi
 GATEWAY_HOST="$1"
 OUT="$2"
 
+# run the load generator with the standard experiment configuration
 python3 "${PROJECT_ROOT}/tools/loadgen.py" \
   --host "$GATEWAY_HOST" \
   --port 9000 \

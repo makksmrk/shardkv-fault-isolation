@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# Run a local ShardKV normal-load experiment without fault injection.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,6 +22,7 @@ fi
 BACKEND_BIN="${BUILD_DIR}/shardkv_backend"
 GATEWAY_BIN="${BUILD_DIR}/shardkv_gateway_${VARIANT}"
 
+# build binaries if they are not available
 if [[ ! -x "$BACKEND_BIN" || ! -x "$GATEWAY_BIN" ]]; then
   echo "[build] compiling ShardKV"
 
@@ -43,6 +46,7 @@ mkdir -p "$RUN_DIR"
 
 PIDS=()
 
+# terminate all experiment processes on exit
 cleanup() {
   for pid in "${PIDS[@]:-}"; do
     kill -CONT "$pid" >/dev/null 2>&1 || true
@@ -56,6 +60,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+# start three local backend processes
 for i in 0 1 2; do
   port=$((9101 + i))
 
@@ -69,6 +74,7 @@ done
 
 sleep 0.5
 
+# start the selected gateway variant
 "$GATEWAY_BIN" \
   9000 \
   127.0.0.1:9101 \
@@ -81,6 +87,7 @@ PIDS+=("$!")
 
 sleep 0.5
 
+# seed the key-value store before starting the load test
 echo "[seed] preparing $KEYS keys"
 
 python3 "${PROJECT_ROOT}/tools/seed_data.py" \
@@ -89,6 +96,7 @@ python3 "${PROJECT_ROOT}/tools/seed_data.py" \
   --keys "$KEYS" \
   --timeout "$TIMEOUT"
 
+# run the normal load test without injecting failures
 echo "[load] variant=$VARIANT clients=$CLIENTS duration=${DURATION}s"
 
 python3 "${PROJECT_ROOT}/tools/loadgen.py" \

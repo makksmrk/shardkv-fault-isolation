@@ -1,3 +1,5 @@
+// Implement a multithreaded key-value backend and export per-second metrics.
+
 #include "common.hpp"
 
 #include <atomic>
@@ -29,6 +31,7 @@ struct WindowStats {
     std::uint64_t other = 0;
     std::array<std::uint64_t, LAT_BUCKETS_MS.size() + 1> buckets{};
 
+    // record request status and latency for the current metrics window
     void record(const std::string& status, double latency_ms) {
         std::lock_guard<std::mutex> g(mu);
         ++requests;
@@ -38,6 +41,7 @@ struct WindowStats {
         ++buckets[latency_bucket(latency_ms)];
     }
 
+    // return current metrics and reset counters for the next window
     StatsSnapshot snapshot_and_reset() {
         std::lock_guard<std::mutex> g(mu);
         StatsSnapshot s;
@@ -58,6 +62,8 @@ WindowStats stats;
 std::atomic<int> open_connections{0};
 std::atomic<bool> running{true};
 
+
+// execute a single key-value operation
 Response handle_request(const Request& r) {
     if (r.op == "GET") {
         std::shared_lock lock(kv_mu);
@@ -78,6 +84,8 @@ Response handle_request(const Request& r) {
     return {r.id, "BAD_REQUEST", {}};
 }
 
+
+// process requests from one client connection
 void serve_client(int fd) {
     open_connections.fetch_add(1, std::memory_order_relaxed);
     LineReader reader(fd);
@@ -100,6 +108,8 @@ void serve_client(int fd) {
     open_connections.fetch_sub(1, std::memory_order_relaxed);
 }
 
+
+// write request, connection, and latency metrics once per second
 void metrics_loop(const std::string& path) {
     std::ofstream out(path, std::ios::out | std::ios::trunc);
     out << "t_s,req_s,ok,not_found,other,open_connections";
@@ -114,6 +124,8 @@ void metrics_loop(const std::string& path) {
         double t = std::chrono::duration<double>(Clock::now() - start).count();
         out << t << ',' << s.requests << ',' << s.ok << ',' << s.not_found << ',' << s.other
             << ',' << open_connections.load();
+
+        // export latency buckets as cumulative counters
         std::uint64_t cumulative = 0;
         for (std::size_t i = 0; i < LAT_BUCKETS_MS.size(); ++i) {
             cumulative += s.buckets[i];
@@ -140,10 +152,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+
+    // export metrics
     std::thread metrics(metrics_loop, argv[2]);
     metrics.detach();
 
     std::cout << "backend listening on port " << port << "\n";
+
+    // accept clients and handle each connection in a separate thread
     while (true) {
         int fd = ::accept(listener, nullptr, nullptr);
         if (fd < 0) {

@@ -1,15 +1,18 @@
+# Seed the key-value store with initial data through the gateway.
+
 #!/usr/bin/env python3
 import argparse
 import socket
 import threading
 
-
+# encode a PUT request using the gateway protocol.
 def encode(rid, key, value):
     return f"{rid} PUT {key} {value}\n".encode()
 
 
 def worker(tid, threads, host, port, nkeys, timeout, errors):
     try:
+        # each worker uses its own connection and processes a subset of keys
         with socket.create_connection((host, port), timeout=timeout) as s:
             s.settimeout(timeout)
             rf = s.makefile("rb")
@@ -20,6 +23,7 @@ def worker(tid, threads, host, port, nkeys, timeout, errors):
                 line = rf.readline()
                 if not line:
                     raise RuntimeError("connection closed")
+                # validate the request ID and response status.
                 parts = line.decode().strip().split(maxsplit=2)
                 if len(parts) < 2 or int(parts[0]) != rid or parts[1] != "OK":
                     raise RuntimeError(f"bad response for {key}: {line!r}")
@@ -28,6 +32,7 @@ def worker(tid, threads, host, port, nkeys, timeout, errors):
 
 
 def main():
+    # parse command-line arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", required=True)
     ap.add_argument("--port", type=int, default=9000)
@@ -37,6 +42,8 @@ def main():
     args = ap.parse_args()
 
     errors = []
+
+    # start workers and distribute keys across them
     ts = [threading.Thread(target=worker, args=(i, args.threads, args.host, args.port, args.keys, args.timeout, errors))
           for i in range(args.threads)]
     for t in ts:

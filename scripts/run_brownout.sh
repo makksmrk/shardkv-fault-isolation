@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# Run a load test and inject a temporary backend brownout over SSH.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,6 +22,7 @@ if [[ ! "$BACKEND_PID" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+# build the SSH command, optionally using a dedicated key
 SSH=(ssh)
 
 if [[ -n "$SSH_KEY" ]]; then
@@ -31,12 +34,14 @@ fi
 
 SSH+=("$BACKEND_SSH")
 
+# ensure the backend is resumed if the script exits early
 cleanup() {
   "${SSH[@]}" "kill -CONT $BACKEND_PID" >/dev/null 2>&1 || true
 }
 
 trap cleanup EXIT INT TERM
 
+# stop the backend for 15 seconds to simulate a brownout
 (
   sleep 30
 
@@ -51,6 +56,7 @@ trap cleanup EXIT INT TERM
 
 INJECTOR_PID=$!
 
+# run the load generator while the brownout is injected
 python3 "${PROJECT_ROOT}/tools/loadgen.py" \
   --host "$GATEWAY_HOST" \
   --port 9000 \

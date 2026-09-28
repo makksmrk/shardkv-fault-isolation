@@ -1,4 +1,4 @@
-# ShardKV — Fault Isolation in a Sharded Key-Value Service
+# ShardKV - Fault Isolation in a Sharded Key-Value Service
 
 ShardKV is a small C++17 in-memory key-value service built to explore one practical systems question: **what happens to healthy shards when one backend becomes slow or stops responding?**
 
@@ -178,10 +178,54 @@ Detailed interpretation and additional plots are in [docs/results.md](docs/resul
 
 `analyze.py` accepts raw load-generator CSV files and produces an aggregated summary plus the healthy-shard p99 timeline.
 
+Example usage:
+```bash
+python3 analyze.py \
+    --baseline-normal \
+        baseline_normal_1.csv \
+        baseline_normal_2.csv \
+        baseline_normal_3.csv \
+    --baseline-brownout \
+        baseline_brownout_1.csv \
+        baseline_brownout_2.csv \
+        baseline_brownout_3.csv \
+    --isolated-brownout \
+        isolated_brownout_1.csv \
+        isolated_brownout_2.csv \
+        isolated_brownout_3.csv \
+    --isolated-normal \
+    	isolated_normal_1.csv \
+    	isolated_normal_2.csv \
+    	isolated_normal_3.csv \
+    --unhealthy-shard 2 \
+    --out p99_healthy_timeline.png \
+    --summary summary.csv
+```
+
+Example output:
+```bash
+wrote p99_healthy_timeline.png
+wrote summary.csv
+
+baseline (normal reference: separate normal runs)
+  normal healthy p99:           27.18 ms
+  brownout healthy phase p99:   32.45 ms (1.19x)
+  brownout peak 1s p99:      5023.35 ms (184.79x)
+  healthy throughput ratio:     14.5%
+
+isolated (normal reference: separate normal runs)
+  normal healthy p99:           27.34 ms
+  brownout healthy phase p99:   27.07 ms (0.99x)
+  brownout peak 1s p99:      47.29 ms (1.73x)
+  healthy throughput ratio:     99.7%
+
+```
+
 `queue_plots.py` works with the small gateway metric samples retained in `measurements/` and can regenerate the queue-behavior plots:
 
+Example usage:
 ```bash
-python3 tools/queue_plots.py
+python3 queue_plots.py
 ```
 
 ## Limitations

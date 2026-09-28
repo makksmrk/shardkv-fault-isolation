@@ -1,3 +1,5 @@
+# Analyze load-test results and compare baseline and isolated brownout behavior.
+
 #!/usr/bin/env python3
 import argparse
 import csv
@@ -16,6 +18,7 @@ def percentile(values, p):
     return a[idx]
 
 
+# load request samples and reconstruct their start timestamps
 def read_samples(path):
     rows = []
     with open(path, newline="") as fh:
@@ -34,7 +37,7 @@ def read_samples(path):
             })
     return rows
 
-
+# build a p99 latency time series for healthy shards
 def p99_series(rows, unhealthy_shard, start, end, bin_s=1.0):
     bins = defaultdict(list)
     for r in rows:
@@ -52,7 +55,7 @@ def p99_series(rows, unhealthy_shard, start, end, bin_s=1.0):
     ys = [percentile(bins.get(b, []), 99) for b in range(n_bins)]
     return xs, ys
 
-
+# average multiple time series while ignoring empty bins
 def mean_series(series_list):
     if not series_list:
         return []
@@ -62,7 +65,7 @@ def mean_series(series_list):
         out.append(mean(finite) if finite else float("nan"))
     return out
 
-
+# calculate throughput, success rate, and latency for a time interval
 def summarize(rows, shard_filter, t0, t1):
     # Throughput and latency here use requests that completed in the interval.
     sel = [r for r in rows if t0 <= r["t"] < t1 and shard_filter(r["shard"])]
@@ -79,7 +82,7 @@ def summarize(rows, shard_filter, t0, t1):
         "p99_ms": percentile(lats, 99),
     }
 
-
+# average summary metrics across multiple runs
 def average_dict(dicts):
     out = {}
     for k in dicts[0]:
@@ -87,7 +90,7 @@ def average_dict(dicts):
         out[k] = mean(vals) if vals else float("nan")
     return out
 
-
+# calculate the mean peak p99 across runs
 def peak_timeline_p99(runs, unhealthy_shard, t0, t1, bin_s):
     peaks = []
     for rows in runs:
@@ -109,6 +112,7 @@ def pre_brownout_reference(runs, unhealthy_shard, warmup, brownout_start):
 
 
 def main():
+    # parse analysis configuration and input files
     ap = argparse.ArgumentParser()
     ap.add_argument("--baseline-brownout", nargs="+", required=True)
     ap.add_argument("--isolated-brownout", nargs="+", required=True)
@@ -126,16 +130,18 @@ def main():
     ap.add_argument("--summary", default="summary.csv")
     args = ap.parse_args()
 
+
+    # load brownout and normal runs.
     brownout = {
         "baseline": [read_samples(p) for p in args.baseline_brownout],
         "isolated": [read_samples(p) for p in args.isolated_brownout],
     }
     separate_normal = {
-        "baseline": [read_samples(p) for p in args.baseline_normal] if args.baseline_normal else None,
-        "isolated": [read_samples(p) for p in args.isolated_normal] if args.isolated_normal else None,
+        "baseline": [read_samples(p) for p in args.baseline_normal],
+        "isolated": [read_samples(p) for p in args.isolated_normal],
     }
 
-    # Central result plot: p99 time course of healthy shards.
+    # plot healthy-shard p99 latency over time
     plt.figure(figsize=(10, 5))
     for variant, runs in brownout.items():
         per_run = []
@@ -144,9 +150,7 @@ def main():
             xs, ys = p99_series(rows, args.unhealthy_shard, args.warmup, args.end, args.bin)
             per_run.append(ys)
         ys_mean = mean_series(per_run)
-        # marker is important: while all workers are blocked there may be no
-        # completions. A timeout second can therefore be a single finite point
-        # surrounded by NaNs; without a marker matplotlib makes that p99 spike invisible.
+        # markers keep isolated finite samples visible between empty bins
         plt.plot(xs, ys_mean, marker="o", markersize=2.8, linewidth=1.2,
                  label=f"{variant} (mean p99, n={len(runs)})")
 
@@ -160,6 +164,7 @@ def main():
     plt.savefig(args.out, dpi=160)
     print(f"wrote {args.out}")
 
+    # define analysis phases for summary statistics
     phases = [
         ("pre_brownout", args.warmup, args.brownout_start),
         ("brownout", args.brownout_start, args.brownout_end),
@@ -168,6 +173,8 @@ def main():
     fields = ["variant", "run", "group", "phase", "requests", "req_s",
               "success_pct", "error_pct", "p50_ms", "p95_ms", "p99_ms"]
 
+
+    # write per-run and averaged metrics to CSV
     with open(args.summary, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fields)
         w.writeheader()
@@ -201,8 +208,8 @@ def main():
 
     print(f"wrote {args.summary}")
 
-    # Explicit success checks. Aggregate phase p99 is reported, but for the
-    # baseline also show the peak 1-s p99 visible in the required time-series.
+
+    # compare brownout behavior against the normal reference
     healthy = lambda s, u=args.unhealthy_shard: s != u
     for variant, runs in brownout.items():
         if separate_normal[variant]:
@@ -220,8 +227,18 @@ def main():
         ])
         peak = peak_timeline_p99(runs, args.unhealthy_shard,
                                  args.brownout_start, args.brownout_end, args.bin)
-        phase_ratio = brown["p99_ms"] / normal["p99_ms"] if normal["p99_ms"] > 0 else float("nan")
-        peak_ratio = peak / normal["p99_ms"] if normal["p99_ms"] > 0 else float("nan")
+        phase_ratio = (brown["p99_ms"] / normal["p99_ms"]
+                       if normal["p99_ms"] > 0
+                       else float("nan")
+        )
+        peak_ratio = (peak / normal["p99_ms"]
+            if normal["p99_ms"] > 0
+            else float("nan")
+        )
+        throughput_ratio = (brown["req_s"] / normal["req_s"]
+            if normal["req_s"] > 0
+            else float("nan")
+        )
         print(f"\n{variant} (normal reference: {normal_source})")
         print(f"  normal healthy p99:           {normal['p99_ms']:.2f} ms")
         print(f"  brownout healthy phase p99:   {brown['p99_ms']:.2f} ms ({phase_ratio:.2f}x)")

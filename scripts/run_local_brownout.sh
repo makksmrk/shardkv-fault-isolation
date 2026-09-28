@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# Run a local ShardKV brownout experiment with configurable load and timing.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,6 +36,7 @@ fi
 BACKEND_BIN="${BUILD_DIR}/shardkv_backend"
 GATEWAY_BIN="${BUILD_DIR}/shardkv_gateway_${VARIANT}"
 
+# build binaries if they are not available
 if [[ ! -x "$BACKEND_BIN" || ! -x "$GATEWAY_BIN" ]]; then
   echo "[build] compiling ShardKV"
 
@@ -59,6 +62,7 @@ PIDS=()
 BACKEND_PIDS=()
 INJECTOR_PID=""
 
+# resume stopped processes and terminate all experiment processes on exit
 cleanup() {
   if [[ ${#BACKEND_PIDS[@]} -ge 3 ]]; then
     kill -CONT "${BACKEND_PIDS[2]}" >/dev/null 2>&1 || true
@@ -80,6 +84,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+# start three local backend processes
 for i in 0 1 2; do
   port=$((9101 + i))
 
@@ -96,6 +101,7 @@ done
 
 sleep 0.5
 
+# start the selected gateway variant
 "$GATEWAY_BIN" \
   9000 \
   127.0.0.1:9101 \
@@ -108,6 +114,7 @@ PIDS+=("$!")
 
 sleep 0.5
 
+# seed the key-value store before starting the load test
 echo "[seed] preparing $KEYS keys"
 
 python3 "${PROJECT_ROOT}/tools/seed_data.py" \
@@ -116,6 +123,7 @@ python3 "${PROJECT_ROOT}/tools/seed_data.py" \
   --keys "$KEYS" \
   --timeout "$TIMEOUT"
 
+# stop backend 2 temporarily to inject the brownout
 (
   sleep "$BROWNOUT_AT"
 
@@ -136,6 +144,7 @@ python3 "${PROJECT_ROOT}/tools/seed_data.py" \
 
 INJECTOR_PID="$!"
 
+# run the load generator while the brownout is injected
 echo "[load] variant=$VARIANT clients=$CLIENTS duration=${DURATION}s brownout=${BROWNOUT_AT}s+${BROWNOUT_SECONDS}s"
 
 python3 "${PROJECT_ROOT}/tools/loadgen.py" \

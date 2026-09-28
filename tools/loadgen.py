@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-"""Load generator for ShardKV
+# Generate concurrent load against the gateway and record request metrics.
 
-Adapted parts:
-- NUM_BACKENDS = 3
-- deterministic FNV-1a shard mapping matching the C++ gateway
-- protocol parser accepts optional GET value
-- optional consistency check using a reserved key not touched by the workload
-"""
+#!/usr/bin/env python3
 
 import argparse
 import csv
@@ -25,7 +19,7 @@ NUM_BACKENDS = 3
 def key_name(i: int) -> str:
     return f"key-{i:08d}"
 
-
+# compute the FNV-1a hash used for shard selection
 def fnv1a32(data: bytes) -> int:
     h = 2166136261
     for b in data:
@@ -53,7 +47,7 @@ def parse_response(line: bytes) -> tuple[int, str, str | None]:
     value = parts[2] if len(parts) == 3 else None
     return rid, status, value
 
-
+# use either a uniform key distribution or a skewed hot-set distribution
 def make_key_picker(rng: random.Random, hotset: bool):
     if not hotset:
         return lambda: rng.randrange(NUM_KEYS)
@@ -65,7 +59,7 @@ def make_key_picker(rng: random.Random, hotset: bool):
 
     return pick
 
-
+# select an operation according to the configured workload mix
 def pick_op(rng: random.Random) -> str:
     x = rng.random()
     acc = 0.0
@@ -88,6 +82,7 @@ class Client(threading.Thread):
         self.request_id = cid
 
     def run(self):
+        # reuse the connection until an error requires reconnecting.
         sock = rfile = None
         local = []
         while time.monotonic() < self.t_end:
@@ -124,6 +119,8 @@ class Client(threading.Thread):
                 reconnect = True
 
             t1 = time.monotonic()
+
+            # record request time, latency, status, shard, and operation
             local.append(
                 (t1 - self.t_start, (t1 - t0) * 1000.0, status, shard_of(key), op)
             )
@@ -142,6 +139,7 @@ class Client(threading.Thread):
                 sock = rfile = None
                 time.sleep(min(0.1, max(0.0, self.t_end - time.monotonic())))
 
+        # merge per-client samples after the client finishes
         with self.lock:
             self.samples.extend(local)
         if rfile is not None:
@@ -159,7 +157,7 @@ def percentile(sorted_vals, p):
     )
     return sorted_vals[idx]
 
-
+# exclude requests started during warmup or completed after the test window
 def kept_samples(samples, warmup, duration):
     return [
         s
@@ -167,7 +165,7 @@ def kept_samples(samples, warmup, duration):
         if s[0] - s[1] / 1000 >= warmup and s[0] <= duration
     ]
 
-
+# print throughput, status distribution, operation mix, and latency percentiles
 def report(samples, warmup, duration, label):
     kept = kept_samples(samples, warmup, duration)
     lat = sorted(s[1] for s in kept)
@@ -190,7 +188,7 @@ def report(samples, warmup, duration, label):
         f"p95={percentile(lat, 95):.2f} p99={percentile(lat, 99):.2f}"
     )
 
-
+# send a single request using a temporary connection
 def one_request(host, port, timeout, rid, op, key, value=None):
     with socket.create_connection((host, port), timeout=timeout) as sock:
         sock.settimeout(timeout)
@@ -202,6 +200,7 @@ def one_request(host, port, timeout, rid, op, key, value=None):
         return parse_response(line)
 
 
+# verify that a known key remains readable before and after the load test
 def verify_reserved_key(args, phase):
     key = "verify-key-00000001"
     value = "known-value-shardkv"
@@ -218,6 +217,7 @@ def verify_reserved_key(args, phase):
 
 
 def main():
+    # parse and validate load-generator configuration
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=9000)
@@ -241,6 +241,8 @@ def main():
     if not args.no_verify:
         verify_reserved_key(args, "before")
 
+
+    # start concurrent clients for the configured test duration
     samples, lock = [], threading.Lock()
     t_start = time.monotonic()
     t_end = t_start + args.duration
@@ -254,10 +256,13 @@ def main():
     for c in clients:
         c.join()
 
+
+    # report aggregate and per-shard results
     report(samples, args.warmup, args.duration, "all")
     for shard in range(NUM_BACKENDS):
         report([s for s in samples if s[3] == shard], args.warmup, args.duration, f"shard {shard}")
 
+    # save all collected samples for further analysis
     with open(args.csv, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["t_rel_s", "lat_ms", "status", "shard", "op"])

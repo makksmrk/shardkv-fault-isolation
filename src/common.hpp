@@ -1,5 +1,7 @@
 #pragma once
 
+// Common protocol, networking, sharding, and timing utilities.
+
 #include <arpa/inet.h>
 #include <array>
 #include <cerrno>
@@ -33,6 +35,9 @@ struct Response {
     std::string value;
 };
 
+
+
+// parse line-based request and response messages
 inline bool parse_request(const std::string& line, Request& r) {
     std::istringstream iss(line);
     if (!(iss >> r.id >> r.op >> r.key)) return false;
@@ -48,11 +53,13 @@ inline bool parse_response(const std::string& line, Response& r) {
     if (!(iss >> r.id >> r.status)) return false;
     r.value.clear();
     if (r.status == "OK") {
-        iss >> r.value; // GET may return a value; PUT/DELETE may not.
+        iss >> r.value; // GET may return a value; PUT/DELETE may not
     }
     return true;
 }
 
+
+// encode requests and responses using the line-based protocol
 inline std::string encode_request(const Request& r) {
     std::string out = std::to_string(r.id) + " " + r.op + " " + r.key;
     if (r.op == "PUT") out += " " + r.value;
@@ -67,6 +74,8 @@ inline std::string encode_response(const Response& r) {
     return out;
 }
 
+
+// map keys to shards using the FNV-1a hash
 inline std::uint32_t fnv1a32(const std::string& s) {
     std::uint32_t h = 2166136261u;
     for (unsigned char c : s) {
@@ -80,6 +89,8 @@ inline std::size_t shard_of(const std::string& key, std::size_t n) {
     return static_cast<std::size_t>(fnv1a32(key) % n);
 }
 
+
+// send the complete buffer, handling partial writes and interruptions
 inline bool send_all(int fd, const std::string& data) {
     std::size_t off = 0;
     while (off < data.size()) {
@@ -94,6 +105,9 @@ inline bool send_all(int fd, const std::string& data) {
     return true;
 }
 
+
+
+// read newline-delimited messages from a socket
 class LineReader {
 public:
     explicit LineReader(int fd) : fd_(fd) {}
@@ -123,6 +137,8 @@ private:
     std::string buf_;
 };
 
+
+// create a dual-stack TCP listener
 inline int make_listener(std::uint16_t port, int backlog = 256) {
     int fd = ::socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) return -1;
@@ -155,6 +171,8 @@ inline bool split_host_port(const std::string& spec, std::string& host, std::str
     return true;
 }
 
+
+// connect to a host with an optional timeout
 inline int connect_with_timeout(const std::string& host, const std::string& port, int timeout_ms) {
     addrinfo hints{};
     hints.ai_socktype = SOCK_STREAM;
@@ -208,6 +226,8 @@ inline int connect_with_timeout(const std::string& host, const std::string& port
     return result_fd;
 }
 
+
+// wait until a socket becomes readable
 inline bool wait_readable(int fd, int timeout_ms) {
     if (timeout_ms < 0) return true;
     pollfd pfd{fd, POLLIN, 0};
@@ -224,6 +244,8 @@ inline double ms_since(Clock::time_point a, Clock::time_point b) {
     return std::chrono::duration<double, std::milli>(b - a).count();
 }
 
+
+// latency histogram boundaries used by backend and gateway metrics
 constexpr std::array<double, 12> LAT_BUCKETS_MS{
     1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000
 };
