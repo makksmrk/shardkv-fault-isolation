@@ -43,7 +43,7 @@ These plots help explain the mechanism behind the user-visible latency: requests
 The retained metric CSV samples can be replotted with:
 
 ```bash
-python3 queue_plots.py
+python3 tools/queue_plots.py
 ```
 
 ## CPU profiling  - Flamegraphs

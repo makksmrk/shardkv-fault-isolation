@@ -122,7 +122,7 @@ DURATION=30 CLIENTS=64 KEYS=100000 ./run_local_demo.sh isolated
 
 ## Reproduce a local brownout
 
-A local failure can be injected without SSH or university infrastructure:
+A local failure can be injected local:
 
 ```bash
 ./scripts/run_local_brownout.sh baseline
@@ -131,7 +131,7 @@ A local failure can be injected without SSH or university infrastructure:
 
 The script pauses backend 2 with `SIGSTOP`, keeps the workload running, and resumes it with `SIGCONT` after the configured brownout window.
 
-Default local settings are intentionally compact. They can be changed through environment variables:
+Default local settings. They can be changed through environment variables:
 
 ```bash
 DURATION=70 \
@@ -143,11 +143,11 @@ KEYS=100000 \
 ./run_local_brownout.sh isolated
 ```
 
-The original `run_normal.sh` and `run_brownout.sh` are also kept as small helpers for experiments where the gateway/backends run on separate machines.
+`run_normal.sh` and `run_brownout.sh` are for experiments where the gateway/backends run on separate machines.
 
 ## Original experiment
 
-The portfolio results included in this repository used:
+The results include:
 
 - 64 concurrent clients;
 - 100,000 keys;
@@ -158,7 +158,7 @@ The portfolio results included in this repository used:
 - shard 2 paused from `t=30 s` to `t=45 s`;
 - three runs per architecture/configuration.
 
-The measurements were collected on five Raspberry Pi nodes provided by the university: one load generator, one gateway, and three backend nodes. Infrastructure-specific hostnames and IP addresses are intentionally not part of this public repository.
+The measurements were collected on five Raspberry Pi nodes provided by the university: one load generator, one gateway, and three backend nodes.
 
 Detailed interpretation and additional plots are in [docs/results.md](docs/results.md). The compact aggregated data is available in [`measurements/summary.csv`](measurements/summary.csv).
 
