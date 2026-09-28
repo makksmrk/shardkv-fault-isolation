@@ -2,7 +2,8 @@
 
 ## Test setup
 
-The original experiment used five Raspberry Pi nodes: one load generator, one gateway, and three backends.
+The original experiment used five Raspberry Pi nodes:
+one load generator, one gateway, and three backends. (see [docs/experiment.md](docs/experiment.md))
 
 Workload configuration:
 
@@ -28,7 +29,8 @@ Workload configuration:
 
 ![Healthy-shard p99 timeline](../measurements/p99_healthy_timeline.png)
 
-The baseline architecture shows severe short latency spikes and a large drop in completed requests for healthy shards. With per-shard isolation, healthy-shard throughput and p99 remain close to normal operation.
+The baseline architecture shows severe short latency spikes and a large drop in completed requests for healthy shards.
+With per-shard isolation, healthy-shard throughput and p99 remain close to normal operation.
 
 ## Queue behavior in the baseline
 
@@ -38,7 +40,9 @@ The baseline architecture shows severe short latency spikes and a large drop in 
 
 ![Workers waiting on shard 2](../measurements/waiting_s2_plot.png)
 
-These plots help explain the mechanism behind the user-visible latency: requests accumulate in the shared queue while workers wait for the affected backend. Because those workers are shared, the effect propagates beyond shard 2.
+These plots help explain the mechanism behind the user-visible latency:
+requests accumulate in the shared queue while workers wait for the affected backend.
+Because those workers are shared, the effect propagates beyond shard 2.
 
 The retained metric CSV samples can be replotted with:
 

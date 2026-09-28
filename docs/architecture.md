@@ -17,7 +17,8 @@ flowchart LR
     G -->|FNV-1a key hash| S2[Backend / Shard 2]
 ```
 
-The load generator uses the same FNV-1a mapping as the C++ gateway, which makes it possible to separate metrics for the affected shard and the healthy shards.
+The load generator uses the same FNV-1a mapping as the C++ gateway,
+which makes it possible to separate metrics for the affected shard and the healthy shards.
 
 ## Baseline gateway
 
@@ -37,7 +38,10 @@ flowchart LR
     W --> S2[Shard 2]
 ```
 
-Under normal conditions this is simple and works well. The weakness appears when a backend stops responding: workers assigned to that shard remain blocked, leaving fewer workers for unrelated requests. As more workers become occupied, healthy shards experience head-of-line blocking and throughput collapses.
+Under normal conditions this is simple and works well.
+The weakness appears when a backend stops responding: workers assigned to that shard remain blocked,
+leaving fewer workers for unrelated requests. As more workers become occupied,
+healthy shards experience head-of-line blocking and throughput collapses.
 
 ## Isolated gateway
 
@@ -75,7 +79,8 @@ The circuit breaker is deliberately minimal:
 4. after 1 second, one request is allowed through as a probe;
 5. a successful probe closes the circuit; another failure opens it again.
 
-The breaker is not intended as a reusable production library. It exists to demonstrate how fast failure plus resource isolation changes system behavior during a brownout.
+The breaker is not intended as a reusable production library.
+It exists to demonstrate how fast failure plus resource isolation changes system behavior during a brownout.
 
 ## Request protocol
 
@@ -105,4 +110,5 @@ The gateways record one-second metric windows to CSV. Depending on the gateway v
 - workers waiting on each backend;
 - per-shard circuit state in the isolated version.
 
-The load generator separately records request completion time, latency, status, shard, and operation. This is used for throughput and percentile analysis.
+The load generator separately records request completion time, latency, status, shard, and operation.
+This is used for throughput and percentile analysis.

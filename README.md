@@ -1,6 +1,7 @@
 # ShardKV - Fault Isolation in a Sharded Key-Value Service
 
-ShardKV is a small C++17 in-memory key-value service built to explore one practical systems question: **what happens to healthy shards when one backend becomes slow or stops responding?**
+ShardKV is a small C++17 in-memory key-value service built to explore one practical systems question:
+**what happens to healthy shards when one backend becomes slow or stops responding?**
 
 The project compares two gateway designs:
 
@@ -22,9 +23,9 @@ In the experiment, shard 2 was paused for 15 seconds while the load generator co
 | Phase-wide p99 during brownout | ~32.5 ms | ~27.1 ms |
 | Mean peak 1 s p99 during brownout | ~5,023 ms | ~47 ms |
 
-The baseline loses most healthy-shard throughput because blocked backend calls occupy workers from the shared pool. In the isolated version, failures on one shard are contained to that shard, while requests for healthy shards keep flowing close to their normal rate.
-
-> The phase-wide baseline p99 looks much lower than the peak 1-second p99 because, during the strongest stall, very few requests complete. The time-series plot is therefore important for showing the short periods of severe head-of-line blocking.
+The baseline loses most healthy-shard throughput because blocked backend calls occupy workers from the shared pool.
+In the isolated version, failures on one shard are contained to that shard,
+while requests for healthy shards keep flowing close to their normal rate.
 
 ## Architecture
 
@@ -113,7 +114,8 @@ Run either gateway version:
 ./scripts/run_local_demo.sh isolated
 ```
 
-The script starts three backend processes on localhost, starts the selected gateway, seeds the key space, runs a short workload, and stores generated files under `results/local/`.
+The script starts three backend processes on localhost, starts the selected gateway,
+seeds the key space, runs a short workload, and stores generated files under `results/local/`.
 
 Environment variables can be used to change the workload, for example:
 
@@ -148,9 +150,10 @@ KEYS=100000 \
 
 The published measurements were collected on five Raspberry Pi 4 nodes: one load generator, one gateway, and three backend nodes.
 
-A complete reconstruction of the experiment — including the reference hardware and software, network topology, workload parameters, startup commands, brownout injection, and analysis steps — is available in [docs/experiment.md](docs/experiment.md).
+A complete reconstruction of the experiment is available in [docs/experiment.md](docs/experiment.md).
 
-Detailed interpretation and additional plots are in [docs/results.md](docs/results.md). The compact aggregated data is available in [`measurements/summary.csv`](measurements/summary.csv).
+Detailed interpretation and additional plots are in [docs/results.md](docs/results.md).
+The compact aggregated data is available in [`measurements/summary.csv`](measurements/summary.csv).
 
 ## Repository layout
 

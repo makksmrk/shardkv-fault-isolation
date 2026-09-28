@@ -1,4 +1,4 @@
-# Multi-Host Experiment Guide
+# Multi-Host Experiment
 
 This document reconstructs the multi-host experiment used to produce the measurements published.
 The steps follow the original procedure.
@@ -202,7 +202,8 @@ This results in 12 measured workload runs in total.
 
 The brownout simulates a backend that stops making progress without crashing.
 
-In the reference experiment, backend shard 2 was paused with `SIGSTOP` at `t=30 s` and resumed with `SIGCONT` at `t=45 s`. The client continued sending traffic during the entire 15-second brownout.
+In the reference experiment, backend shard 2 was paused with `SIGSTOP` at `t=30 s`
+and resumed with `SIGCONT` at `t=45 s`. The client continued sending traffic during the entire 15-second brownout.
 
 #### 6.1 Find the backend PID
 
